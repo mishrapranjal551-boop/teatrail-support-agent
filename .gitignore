@@ -13,3 +13,6 @@ __pycache__/
 # Local data created while testing
 tickets.csv
 feedback.csv
+
+# Cached copy of the FAQ sheet
+.faq_cache.csv
