@@ -20,11 +20,11 @@ st.set_page_config(page_title="TeaTrail Store Support", page_icon="🍵")
 def secret(name: str) -> str | None:
     """Reads a value from Streamlit secrets (when deployed) or .env (on my laptop)."""
     try:
-        if name in st.secrets:
+        if st.secrets.get(name):
             return str(st.secrets[name])
     except Exception:  # no secrets.toml on this machine
         pass
-    return os.getenv(name)
+    return os.getenv(name) or None
 
 
 load_dotenv(Path(__file__).resolve().parent / ".env")

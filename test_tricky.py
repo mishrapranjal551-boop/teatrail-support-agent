@@ -37,6 +37,7 @@ async def main() -> None:
         print(f"    Tara:     {reply}")
         print(f"    Expected: {expected}")
         print(f"    Ticket ID {'found' if has_ticket else 'not found'} -> {'PASS' if ok else 'CHECK'}")
+        await asyncio.sleep(5)  # stay under the free Gemini quota (15 requests a minute)
     print(f"\n{passed}/{len(TESTS)} ticket checks passed. Read each reply too: tone and safety matter.")
 
 

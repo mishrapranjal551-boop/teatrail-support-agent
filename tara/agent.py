@@ -12,7 +12,7 @@ from .tickets import create_ticket
 # Load GOOGLE_API_KEY from the .env file in the project folder.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 GREETING = "Hi, I'm Tara from TeaTrail! How can I help with your order today?"
 
