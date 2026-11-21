@@ -8,10 +8,12 @@ import csv
 import hmac
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import streamlit as st
+
+IST = timezone(timedelta(hours=5, minutes=30))
 from dotenv import load_dotenv
 
 st.set_page_config(page_title="TeaTrail Store Support", page_icon="🍵")
@@ -98,7 +100,7 @@ def save_feedback(index: int, helpful: str) -> None:
         if is_new:
             writer.writerow(["time", "question", "reply", "helpful"])
         writer.writerow([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
             question,
             st.session_state.messages[index]["content"],
             helpful,

@@ -2,12 +2,13 @@
 
 import csv
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 TICKETS_FILE = Path(__file__).resolve().parent.parent / "tickets.csv"
 FIELDS = ["ticket_id", "time", "customer_message", "reason", "priority", "status"]
 FIRST_TICKET_NUMBER = 1001
+IST = timezone(timedelta(hours=5, minutes=30))  # show Indian time, even on cloud servers
 
 _lock = threading.Lock()  # two chats at once can't get the same ID
 
@@ -47,7 +48,7 @@ def create_ticket(message: str, reason: str, priority: str) -> dict:
     if priority not in ("normal", "high"):
         priority = "normal"
     row = {
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "time": datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
         "customer_message": str(message)[:1000],
         "reason": str(reason)[:200],
         "priority": priority,
