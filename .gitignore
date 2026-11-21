@@ -1,0 +1,15 @@
+# Secrets: never commit these
+.env
+.streamlit/secrets.toml
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# ADK local runtime data
+.adk/
+
+# Local data created while testing
+tickets.csv
+feedback.csv
