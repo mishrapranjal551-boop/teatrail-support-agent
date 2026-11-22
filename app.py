@@ -129,6 +129,7 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = run(chat.new_session())
     st.session_state.messages = [{"role": "assistant", "content": GREETING}]
     st.session_state.my_tickets = []  # ticket IDs raised in THIS visitor's chat
+    st.session_state.my_orders = []  # order IDs placed in THIS visitor's chat
 
 # ---- Feedback (extra) ---------------------------------------------------------------
 FEEDBACK_FILE = Path(__file__).resolve().parent / "feedback.csv"
@@ -156,6 +157,19 @@ with st.sidebar:
     st.image(SIDEBAR_CUP, width="stretch", alt="A cup of tea with a tea bag")
     st.markdown("**TeaTrail Store**  \nTea, coffee, snacks and gift hampers, delivered across India.")
     st.caption("🚚 Free delivery on orders above ₹499 · Photos: Unsplash")
+    st.divider()
+    st.header("🧾 Your orders")
+    from tara.orders import orders_by_id  # noqa: E402 (Tara is already loaded above)
+
+    my_orders = orders_by_id(set(st.session_state.my_orders))
+    if not my_orders:
+        st.caption("No orders yet. Ask Tara for the menu and tell her what you'd like.")
+    for o in my_orders:
+        with st.container(border=True):
+            st.markdown(f"**{o['order_id']}** · ₹{int(o['total']):,} · Cash on Delivery")
+            st.caption(o["time"])
+            for line in o["items"].split("; "):
+                st.write(line)
     st.divider()
     st.header("🎫 Your tickets")
     mine = set(st.session_state.my_tickets)
@@ -197,7 +211,7 @@ if len(st.session_state.messages) == 1:
         if col.button(q, use_container_width=True):
             suggested = q
 
-prompt = st.chat_input("Ask Tara about orders, delivery, returns…", max_chars=1000) or suggested
+prompt = st.chat_input("Ask for the menu, place an order, or ask about delivery…", max_chars=1000) or suggested
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     reply = limit_message()
@@ -214,5 +228,8 @@ if prompt:
         for ticket_id in re.findall(r"TKT-\d+", reply):
             if ticket_id not in st.session_state.my_tickets:
                 st.session_state.my_tickets.append(ticket_id)
+        for order_id in re.findall(r"ORD-\d+", reply):
+            if order_id not in st.session_state.my_orders:
+                st.session_state.my_orders.append(order_id)
     st.session_state.messages.append({"role": "assistant", "content": reply})
     st.rerun()

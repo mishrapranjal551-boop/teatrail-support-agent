@@ -8,6 +8,7 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 
 from .agent import root_agent
+from .orders import orders_by_id
 from .tickets import create_ticket
 
 APP_NAME = "teatrail_support"
@@ -69,6 +70,26 @@ def _check_ticket_reply(message: str, reply: str, created_ids: list[str]) -> str
     return reply
 
 
+# Safety net for orders. An order is never placed by this code on its own (it involves
+# money), so if Tara writes the call as text or names an order ID that doesn't exist,
+# the customer is asked to confirm again instead.
+_ORDER_TEXT_CALL = re.compile(r"call:\s*[\w:.]*place_order\s*\{.*?\}", re.DOTALL)
+_ORDER_ID = re.compile(r"ORD-\d+")
+_ORDER_RETRY = ("Sorry, I couldn't place your order just now. Your details are still here: "
+                "please reply \"yes, place my order\" and I'll try again.")
+
+
+def _check_order_reply(reply: str, created_order_ids: list[str]) -> str:
+    """Makes sure the customer only ever sees a real order ID."""
+    if _ORDER_TEXT_CALL.search(reply) and not created_order_ids:
+        return _ORDER_RETRY
+    mentioned = set(_ORDER_ID.findall(reply))
+    real = {o["order_id"] for o in orders_by_id(mentioned)}
+    if mentioned - real - set(created_order_ids):
+        return _ORDER_RETRY
+    return reply
+
+
 def _is_rate_limit(err: Exception) -> bool:
     text = f"{type(err).__name__} {err}"
     return "429" in text or "RESOURCE_EXHAUSTED" in text or "ResourceExhausted" in text
@@ -86,6 +107,7 @@ async def ask_tara(session_id: str, message: str, user_id: str = "customer") -> 
         try:
             reply = ""
             created_ids = []  # ticket IDs the create_ticket tool really returned this turn
+            created_order_ids = []  # order IDs the place_order tool really returned this turn
             async for event in _runner.run_async(
                 user_id=user_id, session_id=session_id, new_message=content
             ):
@@ -93,9 +115,13 @@ async def ask_tara(session_id: str, message: str, user_id: str = "customer") -> 
                     if resp.name == "create_ticket" and isinstance(resp.response, dict):
                         if resp.response.get("ticket_id"):
                             created_ids.append(resp.response["ticket_id"])
+                    if resp.name == "place_order" and isinstance(resp.response, dict):
+                        if resp.response.get("ok") and resp.response.get("order_id"):
+                            created_order_ids.append(resp.response["order_id"])
                 if event.is_final_response() and event.content and event.content.parts:
                     reply = "".join(p.text or "" for p in event.content.parts).strip()
             reply = _check_ticket_reply(message, reply, created_ids)
+            reply = _check_order_reply(reply, created_order_ids)
             return reply or "Sorry, I couldn't answer that just now. Please try again."
         except Exception as err:
             if not _is_rate_limit(err) or attempt == 2:
