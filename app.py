@@ -40,6 +40,25 @@ os.environ["GOOGLE_API_KEY"] = api_key  # Tara's Gemini client reads it from her
 
 st.title("🍵 TeaTrail Store Support")
 
+
+# ---- Store photos (free Unsplash photos, loaded from Unsplash's image CDN) ------------
+def photo(photo_id: str, w: int, h: int) -> str:
+    """A cropped Unsplash photo URL at the size we need, so pages load fast."""
+    return f"https://images.unsplash.com/photo-{photo_id}?auto=format&fit=crop&w={w}&h={h}&q=75"
+
+
+BANNER = photo("1491497895121-1334fc14d8c9", 1400, 420)  # tea gardens in Munnar, Kerala
+SIDEBAR_CUP = photo("1491720731493-223f97d92c21", 600, 360)
+CATEGORIES = [
+    ("Tea", "1765153743332-949b8d623d92", "Loose tea and tea bags, cups of tea and tea leaves"),
+    ("Coffee", "1447933601403-0c6688de566e", "Roasted coffee beans"),
+    ("Snacks", "1576717585968-8ea8166b89b8", "Tea-time cookies"),
+    ("Gift hampers", "1508899203029-1c9eb493c9bd", "A gift basket of treats"),
+]
+
+st.image(BANNER, width="stretch", alt="Green tea gardens on misty hills in Munnar, Kerala")
+st.caption("Fresh from India’s tea gardens to your cup. Tara is here to help, day and night.")
+
 # ---- Message limits (protect the Gemini quota on a public page) --------------------
 # Anyone can open the page, so instead of a passcode we limit how much one visitor,
 # and the whole site, can send per day. Change the numbers in Secrets if needed.
@@ -134,6 +153,10 @@ def save_feedback(index: int, helpful: str) -> None:
 # ---- Sidebar: this customer's own tickets only -------------------------------------
 # A public page must never show other customers' tickets or messages.
 with st.sidebar:
+    st.image(SIDEBAR_CUP, width="stretch", alt="A cup of tea with a tea bag")
+    st.markdown("**TeaTrail Store**  \nTea, coffee, snacks and gift hampers, delivered across India.")
+    st.caption("🚚 Free delivery on orders above ₹499 · Photos: Unsplash")
+    st.divider()
     st.header("🎫 Your tickets")
     mine = set(st.session_state.my_tickets)
     open_list = [t for t in tickets.open_tickets() if t["ticket_id"] in mine]
@@ -162,6 +185,12 @@ for i, msg in enumerate(st.session_state.messages):
 # Suggested questions (extra) show until the customer asks something.
 suggested = None
 if len(st.session_state.messages) == 1:
+    st.markdown("##### Shop by category")
+    for col, (label, pid, alt) in zip(st.columns(4), CATEGORIES):
+        with col:
+            st.image(photo(pid, 400, 300), width="stretch", alt=alt)
+            st.markdown(f"<p style='text-align:center;margin-top:-8px'><b>{label}</b></p>", unsafe_allow_html=True)
+    st.markdown("##### Ask Tara")
     cols = st.columns(3)
     for col, q in zip(cols, ["How much does delivery cost?", "What is your return policy?", "How do I track my order?"]):
         if col.button(q, use_container_width=True):
