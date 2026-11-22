@@ -37,6 +37,10 @@ if not api_key:
     st.error("GOOGLE_API_KEY is missing. Add it to .env on your laptop, or to the app's Secrets on Streamlit Cloud.")
     st.stop()
 os.environ["GOOGLE_API_KEY"] = api_key  # Tara's Gemini client reads it from here
+# Optional: where orders are saved permanently (the TeaTrail Orders Google Sheet).
+for _name in ("ORDERS_WEBHOOK_URL", "ORDERS_WEBHOOK_SECRET"):
+    if secret(_name):
+        os.environ[_name] = secret(_name)
 
 st.title("🍵 TeaTrail Store Support")
 
@@ -106,17 +110,42 @@ def limit_message() -> str | None:
     return None
 
 # ---- Tara (loaded once, on one long-running event loop) ---------------------------
+def tara_version() -> str:
+    """A fingerprint of Tara's code and menu. When a push changes them, it changes too."""
+    import hashlib
+
+    root = Path(__file__).resolve().parent
+    h = hashlib.sha256()
+    for f in sorted([*(root / "tara").glob("*.py"), root / "data" / "menu.csv"]):
+        if f.exists():
+            h.update(f.name.encode() + f.read_bytes())
+    return h.hexdigest()[:12]
+
+
 @st.cache_resource
-def get_tara():
-    """Imports Tara and starts one background event loop that all chats share."""
+def get_tara(version: str):
+    """Imports Tara and starts one background event loop that all chats share.
+
+    The cache is keyed on Tara's version, so after a push that changes her code or menu,
+    Streamlit Cloud loads the NEW Tara instead of keeping the old one in memory.
+    """
+    import importlib
+    import sys
+
+    # Reload Tara's modules in order, so the new code is used (not an old cached copy).
+    for name in ("tara.menu", "tara.faq", "tara.tickets", "tara.orders", "tara.agent", "tara.chat"):
+        if name in sys.modules:
+            importlib.reload(sys.modules[name])
     from tara import chat, tickets
 
     loop = asyncio.new_event_loop()
     threading.Thread(target=loop.run_forever, daemon=True).start()
+    print(f"[app] Tara loaded (version {version})")
     return chat, tickets, loop
 
 
-chat, tickets, loop = get_tara()
+TARA_VERSION = tara_version()
+chat, tickets, loop = get_tara(TARA_VERSION)
 
 
 def run(coro):
@@ -125,7 +154,12 @@ def run(coro):
 
 from tara.agent import GREETING  # noqa: E402
 
+if "session_id" in st.session_state and st.session_state.get("tara_version") != TARA_VERSION:
+    # Tara was updated while this chat was open: start a fresh conversation with the new Tara.
+    st.session_state.session_id = run(chat.new_session())
+    st.session_state.tara_version = TARA_VERSION
 if "session_id" not in st.session_state:
+    st.session_state.tara_version = TARA_VERSION
     st.session_state.session_id = run(chat.new_session())
     st.session_state.messages = [{"role": "assistant", "content": GREETING}]
     st.session_state.my_tickets = []  # ticket IDs raised in THIS visitor's chat

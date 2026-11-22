@@ -1,6 +1,7 @@
 # Secrets: never commit these
 .env
 .streamlit/secrets.toml
+.streamlit/orders_webhook_ready.gs
 
 # Python
 .venv/

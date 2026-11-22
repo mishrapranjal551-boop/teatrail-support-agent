@@ -1,8 +1,11 @@
 """Customer orders, saved in orders.csv. Prices and totals are worked out here, never by the AI."""
 
 import csv
+import json
+import os
 import re
 import threading
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -46,6 +49,30 @@ def _parse_items(items: str, menu: list[dict]) -> tuple[list[tuple[int, dict]], 
         else:
             found.append((qty, item))
     return found, unknown
+
+
+def send_to_sheet(order: dict) -> bool:
+    """Adds the order to the TeaTrail Orders Google Sheet through its Apps Script web hook.
+
+    Needs ORDERS_WEBHOOK_URL and ORDERS_WEBHOOK_SECRET (from Secrets). Returns True if the
+    sheet saved it. orders.csv is still written first, so a sheet problem never loses an order
+    on this machine.
+    """
+    url = os.getenv("ORDERS_WEBHOOK_URL")
+    secret = os.getenv("ORDERS_WEBHOOK_SECRET")
+    if not url or not secret:
+        return False
+    body = json.dumps({"secret": secret, "order": order}).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            ok = json.loads(resp.read().decode("utf-8") or "{}").get("ok") is True
+    except Exception as err:  # network error, wrong URL, script not deployed…
+        print(f"[orders] Could not send {order.get('order_id')} to the Google Sheet: {err!r}")
+        return False
+    if not ok:
+        print(f"[orders] The Google Sheet refused {order.get('order_id')} (check ORDERS_WEBHOOK_SECRET).")
+    return ok
 
 
 def _next_order_number() -> int:
@@ -121,6 +148,8 @@ def place_order(items: str, customer_name: str, phone: str, address: str) -> dic
             if is_new_file:
                 writer.writeheader()
             writer.writerow({"order_id": order_id, **row})
+    # Also save it to the Google Sheet, in the background so the chat isn't slowed down.
+    threading.Thread(target=send_to_sheet, args=({"order_id": order_id, **row},), daemon=True).start()
     return {
         "ok": True,
         "order_id": order_id,
