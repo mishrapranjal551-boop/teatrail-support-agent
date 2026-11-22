@@ -13,7 +13,10 @@ Built with **Google ADK** and **Gemini Flash-Lite**, with a **Streamlit** web pa
   the customer is upset, or the customer asks for a person
 - Guardrails: never shares other customers' details, never promises refunds or discounts,
   ignores "ignore your rules" tricks, never asks for card numbers, OTPs or passwords
-- Web page with a passcode, a sidebar of open tickets, suggested questions and 👍/👎 feedback
+- Public web page, open to any customer with no passcode: suggested questions, 👍/👎 feedback,
+  and a sidebar showing only that customer's own tickets
+- Message limits protect the Gemini quota: 30 messages per visitor per day, 500 for the whole
+  site per day, and a short wait between messages (change them in Secrets)
 
 ## Project files
 | File | What it does |
@@ -32,7 +35,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 1. Copy `.env.example` to `.env` and add your Gemini key from https://aistudio.google.com
-2. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and set `APP_PASSCODE`
+2. Optional: copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` to change the message limits
 
 | Command | What it does |
 |---|---|
@@ -42,6 +45,6 @@ pip install -r requirements.txt
 
 ## Deploy
 On Streamlit Community Cloud, set the main file to `app.py` and add
-`GOOGLE_API_KEY` and `APP_PASSCODE` under **Settings → Secrets**.
+`GOOGLE_API_KEY` under **Settings → Secrets** (plus the optional message limits).
 
 > Secrets live only in `.env` and `.streamlit/secrets.toml`, which are git-ignored.
