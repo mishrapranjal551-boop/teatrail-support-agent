@@ -1,0 +1,27 @@
+# Opens Tara's live page every 6 hours so Streamlit Cloud doesn't put it to sleep.
+# You can also run it by hand: GitHub → Actions → "Keep Tara awake" → Run workflow.
+name: Keep Tara awake
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"  # every 6 hours (UTC); GitHub may start it a few minutes late
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install a headless browser
+        run: |
+          pip install playwright==1.49.1
+          python -m playwright install --with-deps chromium
+      - name: Visit Tara
+        run: python .github/keep_awake.py https://teatrail-tara.streamlit.app
