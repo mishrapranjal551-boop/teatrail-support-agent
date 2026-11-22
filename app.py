@@ -189,10 +189,11 @@ if len(st.session_state.messages) == 1:
     for col, (label, pid, alt) in zip(st.columns(4), CATEGORIES):
         with col:
             st.image(photo(pid, 400, 300), width="stretch", alt=alt)
-            st.markdown(f"<p style='text-align:center;margin-top:-8px'><b>{label}</b></p>", unsafe_allow_html=True)
+            if st.button(f"{label} menu", key=f"menu-{label}", use_container_width=True):
+                suggested = f"Show me your {label} menu"
     st.markdown("##### Ask Tara")
     cols = st.columns(3)
-    for col, q in zip(cols, ["How much does delivery cost?", "What is your return policy?", "How do I track my order?"]):
+    for col, q in zip(cols, ["Show me the full menu", "How much does delivery cost?", "What is your return policy?"]):
         if col.button(q, use_container_width=True):
             suggested = q
 
